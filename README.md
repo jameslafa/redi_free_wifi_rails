@@ -206,3 +206,80 @@ git add .
 git commit -m 'Create a new Venue Scaffold'
 git push
 ````
+
+## Lesson 2 - Model and controllers improvements
+
+If you navigate to [http://localhost:3000/venues](http://localhost:3000/venues), you can already create, edit and delete venues. However, there is many things to improve before considering it ready to by used as an API.
+
+### 1 - Enum: define the venue category
+
+As you may have noticed above, the venue's category is saved as an integer.
+
+Let's consider with have 3 different categories: bar, restaurant and co-working space. We could save the category in the database as a string: `"bar"`, `"restaurant"` or `"co-working space"`. It would work fine, however, it would take a lot more space than needed.
+
+A very common solution is to save the category as an integer. We just have to tell our application that `1` means bar, `2` means restaurant, etc. and it will work perfectly.
+
+Rails is using something call [Enum](http://edgeapi.rubyonrails.org/classes/ActiveRecord/Enum.html) to handle this very easily.
+
+In our model Venue `app/models/venue.rb`, let's add the following.
+
+````ruby
+# Define category's Enum
+enum category: {
+  bar: 1,
+  restaurant: 2,
+  coworking_space: 3
+}
+````
+
+From now on, rails will return us a string with the right category even if it stores the value as an integer.
+
+````ruby
+venue = Venue.new(category: 1)
+venue.category
+=> "bar"
+````
+
+### 2 - Validate our model
+
+It is very important to have consistent data in our database. For example if we are not sure that each venue has a name, how can we display them on a list? If not every venue has geo-coordinates, how can we display them on a map?
+
+Rails have one of the best and easiest validation system out there. Your should start by reading this great guide [Active Record Validations](http://guides.rubyonrails.org/active_record_validations.html).
+
+#### Required fields
+
+We need to make sure that every venue has a name, a description and geo-coordinates (latitude + longitude). This means that rails will refuse to save inside a database a venue which does not have these attributes. Thanks to this system, we are certain that every venue stored in our database is valid.
+
+To require this field, just one simple line needs to be added to our model Venue `app/models/venue.rb`.
+
+````ruby
+validates :name, :description, :latitude, :longitude, :presence => true
+````
+
+Let's try it out.
+
+````ruby
+venue = Venue.new
+=> #<Venue id: nil, name: nil, description: nil, category: nil, latitude: nil, longitude: nil, created_at: nil, updated_at: nil>
+venue.save
+=> false
+venue.errors.full_messages
+=> ["Name can't be blank", "Description can't be blank", "Latitude can't be blank", "Longitude can't be blank"]
+````
+
+As we can see, `venue.save` returns `false` which means it has not been saved. In `venue.errors.full_messages` we can find which validation failed.
+
+### 3 - Create a dataset for testing purposes
+
+Rails has a very simple and easy system to build a dataset which will be shared by every developers on the project. Automizing the creation of the dataset will save you a lot of time because it's something you will have to do quite regularly.
+
+We will create new [Seeds][http://edgeguides.rubyonrails.org/active_record_migrations.html#migrations-and-seed-data]. It's a simple ruby script creating new data in the data just by executing the command `rails db:seed`.
+
+Let's edit the file `db/seeds.rb` and add the following lines:
+
+````ruby
+st_oberholz = Venue.create(name: 'St Oberholz', description: '2-story bar-restaurant, in a 19th-century building, with a daily changing menu, snacks & bagels. They have a great and free wifi connection.', category: 'bar', latitude: 52.5362144, longitude: 13.400969)
+kaschk = Venue.create(name: 'Kaschk', description: 'Craft Beer, Shuffleboard & Coffee. Very fast and free internet connection. Password displayed behind the bar', category: 'bar', latitude: 52.5283261, longitude: 13.4077942)
+````
+
+Run `rails db:seed` to execute the script and create the venues. If you now navigate to [http://localhost:3000/venues](http://localhost:3000/venues) you will see the newly added venues.
