@@ -207,6 +207,8 @@ git commit -m 'Create a new Venue Scaffold'
 git push
 ````
 
+----
+
 ## Lesson 2 - Model and controllers improvements
 
 If you navigate to [http://localhost:3000/venues](http://localhost:3000/venues), you can already create, edit and delete venues. However, there is many things to improve before considering it ready to by used as an API.
@@ -215,7 +217,7 @@ If you navigate to [http://localhost:3000/venues](http://localhost:3000/venues),
 
 As you may have noticed above, the venue's category is saved as an integer.
 
-Let's consider with have 3 different categories: bar, restaurant and co-working space. We could save the category in the database as a string: `"bar"`, `"restaurant"` or `"co-working space"`. It would work fine, however, it would take a lot more space than needed.
+Let's consider we have 3 different categories: bar, restaurant and co-working space. We could save the category in the database as a string: `"bar"`, `"restaurant"` or `"co-working space"`. It would work fine, however, it would take a lot more space than needed.
 
 A very common solution is to save the category as an integer. We just have to tell our application that `1` means bar, `2` means restaurant, etc. and it will work perfectly.
 
@@ -232,7 +234,7 @@ enum category: {
 }
 ````
 
-From now on, rails will return us a string with the right category even if it stores the value as an integer.
+From now on, rails will return a string with the right category even if it stores the value as an integer.
 
 ````ruby
 venue = Venue.new(category: 1)
@@ -244,11 +246,11 @@ venue.category
 
 It is very important to have consistent data in our database. For example if we are not sure that each venue has a name, how can we display them on a list? If not every venue has geo-coordinates, how can we display them on a map?
 
-Rails have one of the best and easiest validation system out there. Your should start by reading this great guide [Active Record Validations](http://guides.rubyonrails.org/active_record_validations.html).
+Rails has one of the best and easiest validation system out there. Your should start by reading this great guide [Active Record Validations](http://guides.rubyonrails.org/active_record_validations.html).
 
 #### Required fields
 
-We need to make sure that every venue has a name, a description and geo-coordinates (latitude + longitude). This means that rails will refuse to save inside a database a venue which does not have these attributes. Thanks to this system, we are certain that every venue stored in our database is valid.
+We need to make sure that every venue has a name, a description and geo-coordinates (latitude + longitude). This means Rails will refuse to save inside a venue which does not have these attributes. Thanks to this system, we are certain that every venue stored in our database is valid.
 
 To require this field, just one simple line needs to be added to our model Venue `app/models/venue.rb`.
 
@@ -271,9 +273,9 @@ As we can see, `venue.save` returns `false` which means it has not been saved. I
 
 ### 3 - Create a dataset for testing purposes
 
-Rails has a very simple and easy system to build a dataset which will be shared by every developers on the project. Automizing the creation of the dataset will save you a lot of time because it's something you will have to do quite regularly.
+Rails has a very simple and easy system to build a dataset which will be shared by every developers on the project. Automatizing the creation of the dataset will save you a lot of time because it's something you will have to do quite regularly.
 
-We will create new [Seeds][http://edgeguides.rubyonrails.org/active_record_migrations.html#migrations-and-seed-data]. It's a simple ruby script creating new data in the data just by executing the command `rails db:seed`.
+We will create new [Seeds](http://edgeguides.rubyonrails.org/active_record_migrations.html#migrations-and-seed-data). It's a simple ruby script creating new data in the database just by executing the command `rails db:seed`.
 
 Let's edit the file `db/seeds.rb` and add the following lines:
 
@@ -283,3 +285,160 @@ kaschk = Venue.create(name: 'Kaschk', description: 'Craft Beer, Shuffleboard & C
 ````
 
 Run `rails db:seed` to execute the script and create the venues. If you now navigate to [http://localhost:3000/venues](http://localhost:3000/venues) you will see the newly added venues.
+
+#### 4 - Add an address to the model Venue
+
+Rails make it very easy to add an attribute to a model. We do not have an address in our model Venue, so let's add one.
+
+````bash
+rails generate migration AddAddressToVenues address:string
+````
+
+As you can see in the console, a new file as been created: `db/migrate/20161102065451_add_address_to_venues.rb`. The number at the beginning of the file is the current timestamp so it will be different for you.
+
+Let's see this file.
+
+````ruby
+class AddAddressToVenues < ActiveRecord::Migration[5.0]
+  def change
+    add_column :venues, :address, :string
+  end
+end
+````
+
+This migration applies a change in the database, it adds a column `address` of a type `string` in the table `venues`.
+
+The modification is not yet applied to the database. To do so, execute the following command in your terminal:
+
+````bash
+rails db:migrate
+````
+
+Now the table venues has this new field. We can see it in the console.
+
+````bash
+rails console
+````
+
+````ruby
+Venue.new
+=> #<Venue id: nil, name: nil, description: nil, category: nil, latitude: nil, longitude: nil, created_at: nil, updated_at: nil, address: nil>
+````
+
+However, if we now go to the our views [http://localhost:3000/venues](http://localhost:3000/venues), we won't see the new field address. We need to add it manually.
+
+#### 4 - Update views
+
+Views are located in `app/views` directory. Our Venue resource views are located in `app/views/venues`.
+
+````bash
+_form.html.erb
+_venue.json.jbuilder
+edit.html.erb
+index.html.erb
+index.json.jbuilder
+new.html.erb
+show.html.erb
+show.json.jbuilder
+````
+
+ - Files ending with `.html.erb` are html views generating the html pages you see when you navigate on [http://localhost:3000/venues](http://localhost:3000/venues) for example;
+ - Files ending with `.json.jbuilder` are json views generating a json response. They will be used to build the API used by the Android application;
+ - Files starting with `_` are partials. They are partial views which can be used in multiple views to avoid duplicating code.
+
+##### Add the address field in the show view
+
+In the file `app/views/venues/show.html.erb`, let's add the address field below the category.
+
+````html
+<p>
+  <strong>Address:</strong>
+  <%= @venue.address %>
+</p>
+````
+
+Now if you navigate to [http://localhost:3000/venues/1](http://localhost:3000/venues/1), you will see the address.
+
+##### Update the index view
+
+In the file `app/views/venues/index.html.erb`, let's remove the description field and add the address instead.
+
+````html
+<thead>
+  <tr>
+    <th>Name</th>
+    <th>Address</th>
+    <th>Category</th>
+    ....
+  </tr>
+</thead>
+....
+<% @venues.each do |venue| %>
+  <tr>
+    <td><%= venue.name %></td>
+    <td><%= venue.address %></td>
+    <td><%= venue.category %></td>
+    ....
+  </tr>
+<% end %>
+````
+
+Now if you navigate to [http://localhost:3000/venues](http://localhost:3000/venues), you will see the address field instead of the description.
+
+##### Update the JSON views
+
+We are not using JSON views yet, however in the next chapter, they will be used to build the API for our Android application.
+
+In the file `app/views/venues/_venue.json.jbuilder`, let's add the address field.
+
+````ruby
+json.extract! venue, :id, :name, :description, :category, :address, :latitude, :longitude, :created_at, :updated_at
+````
+
+Now if you navigate to [http://localhost:3000/venues/2.json](http://localhost:3000/venues/2.json), you will see the address field.
+
+````json
+{
+  "id":2,
+  "name":"St Oberholz",
+  "description":"2-story bar-restaurant, in a 19th-century building, with a daily changing menu, snacks \u0026 bagels. They have a great and free wifi connection.",
+  "category":"restaurant",
+  "address":"Rosenthaler Str. 72A, 10437 Berlin",
+  "latitude":52.5362144,
+  "longitude":13.400969,
+  "created_at":"2016-11-01T08:02:29.497Z",
+  "updated_at":"2016-11-02T07:42:46.438Z",
+  "url":"http://localhost:3000/venues/2.json"
+}
+````
+
+##### Add field address in the form and update category
+In the file `app/views/venues/_form.html.erb`, let's add the address field below the category.
+
+````html
+<div class="field">
+  <%= f.label :address %>
+  <%= f.text_field :address %>
+</div>
+````
+
+Since we defined an Enum for the category, Rails expects a string and not an integer as a value. Let's replace the existing category field with the following to create a nice dropdown.
+
+````html
+<div class="field">
+  <%= f.label :category %>
+  <%= f.select :category, Venue.categories.keys.map { |w| [w.humanize, w] } %>
+</div>
+````
+
+For security reasons, Rails whitelists the fields which can be updated from the views in the controller. To be able to update the address, we need to add it in the whitelist.
+
+Let's edit our controller `app/controllers/venues_controller.rb` and add the address field in the function venue_params.
+
+````ruby
+def venue_params
+  params.require(:venue).permit(:name, :description, :category, :address, :latitude, :longitude)
+end
+````
+
+Now if you navigate to [http://localhost:3000/venues/1/edit](http://localhost:3000/venues/1/edit), you will be able to change the address.
