@@ -566,6 +566,20 @@ Now we have a logout link. Click on it and it will log you out.
 
 Let's test that we are not able to create a new user anymore by going on [http://localhost:3000/users/sign_up](http://localhost:3000/users/sign_up). You should be automatically redirected to [http://localhost:3000/users/sign_in](http://localhost:3000/users/sign_in).
 
+
+#### Enable Basic Authentication for our API.
+
+Edit `config/initializers/devise.rb` (around line 67).
+
+Uncomment and change value of `config.http_authenticatable` to true.
+Uncomment `config.http_authenticatable_on_xhr = true`.
+
+````ruby
+config.http_authenticatable = true
+config.http_authenticatable_on_xhr = true
+````
+
+Restart the server if it was running.
 That's it, we have a simple authentication system protecting our data and that we can use from our API!
 
 ### Deploy on Heroku
