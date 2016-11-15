@@ -442,3 +442,134 @@ end
 ````
 
 Now if you navigate to [http://localhost:3000/venues/1/edit](http://localhost:3000/venues/1/edit), you will be able to change the address.
+
+## Lesson 3
+
+### Authentication
+
+#### Install devise
+
+We want to restrict access to users we know. There is a very famous gem called [Devise](https://github.com/plataformatec/devise) that we'll help us build an authentication system.
+
+Add the following gem in your Gemfile (outside of any group).
+
+````ruby
+gem 'devise'
+````
+
+and run
+
+````bash
+bundle install
+rails generate devise:install
+rails generate devise User
+rake db:migrate
+````
+
+In the file `config/environment/development.rb` add the following line:
+
+````ruby
+config.action_mailer.default_url_options = { host: 'localhost', port: 3000 }
+````
+
+Let's define a default route. This will tell our application which controller and action should be executed when the user navigate on `/`. By default we will show the venue list. Add the following line in `config/routes.rb`.
+
+````ruby
+root to: 'venues#index'
+````
+
+It tells Rails what is the default url running our server on development. It is used to generate urls sent by email like the reset password link.
+
+Have a look at the last migration created in `db/migrate/XXX_devise_create_users.rb` to see the new table which has been created by devise. It will hold every information we need for the authentication.
+
+If your server was running while doing this, please restart it.
+
+#### Enable authentication using devise
+
+We want to restrict access to the entire application. `app/controllers/application_controller.rb` is the parent controller. It means that by default, every controller inherits from this one and therefor any modification of this controller will be applied to any other controller. It is then the perfect place to add our access restriction code if we want it to be applied everywhere.
+
+The only thing we need to do to require the user to be authenticated is to add the following line in `app/controllers/application_controller.rb`.
+
+````ruby
+before_action :authenticate_user!
+````
+
+Now if you navigation to [http://localhost:3000/venues](http://localhost:3000/venues) you'll be redirected to [http://localhost:3000/users/sign_in](http://localhost:3000/users/sign_in) to sign in first.
+
+That's it, out application is now protected! Oh, even from us!
+
+#### Registration
+
+From now, a user account is need to access any page of the app. However, anyone can create an account going on [http://localhost:3000/users/sign_up](http://localhost:3000/users/sign_up). For many application, you want user to be able to create a new account but in our case, we do not want anybody to be able to create an account and modify our data.
+
+What we're going to do is to let the application let us create only one user. When this user is created, it won't be able to create a new one. It will suit our specific need.
+
+There is a simple tutorial for that: [https://github.com/plataformatec/devise/wiki/How-To:-Set-up-devise-as-a-single-user-system](https://github.com/plataformatec/devise/wiki/How-To:-Set-up-devise-as-a-single-user-system).
+
+In `config/routes.rb`, we will Rails to use a new controller that we are about to create to handle registration.
+
+````ruby
+# Replace
+devise_for :users
+# by
+devise_for :users, controllers: { registrations: "registrations"}
+````
+
+Now let's create the new controller. Create a new file `app/controllers/registrations_controller.rb` with the following content:
+
+````ruby
+class RegistrationsController < Devise::RegistrationsController
+
+  before_action :one_user_registered?, only: [:new, :create]
+
+  protected
+
+  def one_user_registered?
+    if ((User.count == 1) & (user_signed_in?))
+      redirect_to root_path
+    elsif User.count == 1
+      redirect_to new_user_session_path
+    end  
+  end
+
+end
+````
+
+Before create a new user, the method `one_user_registered?` is called. If there is already already a user in the database, he is redirected to the sign_in page. If he is already signed_in, it will be redirected to the default page of the app.
+
+Now we can go to [http://localhost:3000/users/sign_up](http://localhost:3000/users/sign_up) and create our user account. After creating it, we should see our data again!
+
+#### Log out
+Now we are signed in, but how to we log out?
+
+Let's look at our routes
+
+````bash
+rails routes
+````
+
+We can see the following route: `destroy_user_session DELETE /users/sign_out(.:format)      devise/sessions#destroy`.
+
+It means we need to make a DELETE request on `/users/sign_out`. We want to be able to logout from any page, so we can add a button in our default layout.
+
+Let's add the following lines in `app/views/layouts/application.html.erb`, above `<%= yield %>`
+
+````html
+<% if user_signed_in? %>
+  <div class="nav">
+    <%= link_to('Logout', destroy_user_session_path, :method => :delete) %>
+  </div>
+<% end %>
+````
+
+Now we have a logout link. Click on it and it will log you out.
+
+Let's test that we are not able to create a new user anymore by going on [http://localhost:3000/users/sign_up](http://localhost:3000/users/sign_up). You should be automatically redirected to [http://localhost:3000/users/sign_in](http://localhost:3000/users/sign_in).
+
+That's it, we have a simple authentication system protecting our data and that we can use from our API!
+
+### Deploy on Heroku
+
+Heroku is a serving where you can host and run your rails app for free. Create an account on [http://www.heroku.com](http://www.heroku.com) and follow this [instructions](https://devcenter.heroku.com/articles/git). With a few commands, your app will be running.
+
+I already deployed a version of our application on [https://redi-free-wifi.herokuapp.com](https://redi-free-wifi.herokuapp.com/)
