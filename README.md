@@ -579,7 +579,14 @@ config.http_authenticatable = true
 config.http_authenticatable_on_xhr = true
 ````
 
+In `app/controllers/application_controller.rb`, remove the following line:
+
+````ruby
+protect_from_forgery with: :exception
+````
+
 Restart the server if it was running.
+
 That's it, we have a simple authentication system protecting our data and that we can use from our API!
 
 ### Deploy on Heroku
